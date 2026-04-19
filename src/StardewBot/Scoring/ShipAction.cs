@@ -9,6 +9,7 @@ public class ShipAction : IAction
     public string Name => "Ship";
 
     private bool _done;
+    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -19,7 +20,7 @@ public class ShipAction : IAction
             .Total;
     }
 
-    public void Begin(DayContext ctx, IWorldReader world) => _done = false;
+    public void Begin(DayContext ctx, IWorldReader world) { _done = false; _warping = false; }
 
     public bool Tick()
     {
@@ -27,9 +28,10 @@ public class ShipAction : IAction
 
         if (Game1.currentLocation.Name != "Farm")
         {
-            Game1.warpFarmer("Farm", 64, 15, false);
+            if (!_warping) { Game1.warpFarmer("Farm", 64, 15, false); _warping = true; }
             return false;
         }
+        _warping = false;
 
         var farm = Game1.getFarm();
         var bin = farm.getBuildingByType("Shipping Bin");

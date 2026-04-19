@@ -8,10 +8,11 @@ public class SleepAction : IAction
     public string Name => "Sleep";
 
     private bool _done;
+    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world) => 999f;
 
-    public void Begin(DayContext ctx, IWorldReader world) => _done = false;
+    public void Begin(DayContext ctx, IWorldReader world) { _done = false; _warping = false; }
 
     public bool Tick()
     {
@@ -19,9 +20,10 @@ public class SleepAction : IAction
 
         if (Game1.currentLocation.Name != "FarmHouse")
         {
-            Game1.warpFarmer("FarmHouse", 5, 9, false);
+            if (!_warping) { Game1.warpFarmer("FarmHouse", 5, 9, false); _warping = true; }
             return false;
         }
+        _warping = false;
 
         Game1.NewDay(0.01f);
         _done = true;

@@ -11,6 +11,7 @@ public class MineAction : IAction
     public string Name => "Mine";
 
     private bool _started;
+    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -29,6 +30,7 @@ public class MineAction : IAction
     public void Begin(DayContext ctx, IWorldReader world)
     {
         _started = false;
+        _warping = false;
     }
 
     public bool Tick()
@@ -38,10 +40,10 @@ public class MineAction : IAction
 
         if (Game1.currentLocation.Name != "Mountain")
         {
-            Game1.warpFarmer("Mountain", 124, 100, false);
-            _started = false;
+            if (!_warping) { Game1.warpFarmer("Mountain", 124, 100, false); _warping = true; _started = false; }
             return false;
         }
+        _warping = false;
 
         if (!_started)
         {

@@ -11,6 +11,7 @@ public class FarmAction : IAction
     public string Name => "Farm";
 
     private Queue<Vector2>? _tilesToProcess;
+    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -26,6 +27,7 @@ public class FarmAction : IAction
     public void Begin(DayContext ctx, IWorldReader world)
     {
         _tilesToProcess = new Queue<Vector2>();
+        _warping = false;
         foreach (var tile in world.CropsToHarvest) _tilesToProcess.Enqueue(tile);
         foreach (var tile in world.CropsToWater) _tilesToProcess.Enqueue(tile);
     }
@@ -36,9 +38,10 @@ public class FarmAction : IAction
 
         if (Game1.currentLocation.Name != "Farm")
         {
-            Game1.warpFarmer("Farm", 64, 15, false);
+            if (!_warping) { Game1.warpFarmer("Farm", 64, 15, false); _warping = true; }
             return false;
         }
+        _warping = false;
 
         var tile = _tilesToProcess.Peek();
         var farm = Game1.getFarm();

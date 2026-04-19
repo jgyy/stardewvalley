@@ -11,6 +11,7 @@ public class FishAction : IAction
     public string Name => "Fish";
 
     private bool _casting;
+    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -28,6 +29,7 @@ public class FishAction : IAction
     public void Begin(DayContext ctx, IWorldReader world)
     {
         _casting = false;
+        _warping = false;
     }
 
     public bool Tick()
@@ -36,9 +38,10 @@ public class FishAction : IAction
 
         if (Game1.currentLocation.Name != "Forest")
         {
-            Game1.warpFarmer("Forest", fishingSpot.X, fishingSpot.Y, false);
+            if (!_warping) { Game1.warpFarmer("Forest", fishingSpot.X, fishingSpot.Y, false); _warping = true; }
             return false;
         }
+        _warping = false;
 
         if (!_casting)
         {
