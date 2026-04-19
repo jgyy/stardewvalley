@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>10</LangVersion>
     <BuildingThisMod>false</BuildingThisMod>
+    <GamePath>/home/jegoh/.local/share/Steam/steamapps/common/Stardew Valley</GamePath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.*" />
