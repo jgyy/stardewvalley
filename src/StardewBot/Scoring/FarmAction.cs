@@ -38,7 +38,18 @@ public class FarmAction : IAction
             .Concat(world.DebrisToClear)
             .ToList();
 
-        _tilesToProcess = new Queue<Vector2>(NearestNeighborSort(allTiles, Game1.player.Tile));
+        var sortOrigin = Game1.player.Tile;
+        if (!Game1.currentLocation.Name.Equals("Farm", StringComparison.OrdinalIgnoreCase))
+        {
+            var farm = Game1.getFarm();
+            var house = farm.buildings.FirstOrDefault(b =>
+                b.GetIndoorsName().Equals("FarmHouse", StringComparison.OrdinalIgnoreCase));
+            sortOrigin = house != null
+                ? new Vector2(house.tileX.Value + house.humanDoor.X, house.tileY.Value + house.humanDoor.Y)
+                : new Vector2(64, 15);
+        }
+
+        _tilesToProcess = new Queue<Vector2>(NearestNeighborSort(allTiles, sortOrigin));
         _stuckTicks = 0;
         _lastTile   = Vector2.Zero;
     }

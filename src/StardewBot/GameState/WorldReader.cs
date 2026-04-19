@@ -53,7 +53,7 @@ public class WorldReader : IWorldReader
         get
         {
             var result = new List<Vector2>();
-            foreach (var obj in Game1.currentLocation.Objects.Pairs)
+            foreach (var obj in Game1.getFarm().Objects.Pairs)
                 if (obj.Value.isForage()) result.Add(obj.Key);
             return result;
         }

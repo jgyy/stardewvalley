@@ -1,7 +1,10 @@
 using Microsoft.Xna.Framework;
+using StardewBot.Executor;
 using StardewBot.GameState;
 using StardewValley;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using GameSeason = StardewBot.GameState.Season;
 
 namespace StardewBot.Scoring;
@@ -26,12 +29,17 @@ public class ForageAction : IAction
 
     public void Begin(DayContext ctx, IWorldReader world)
     {
-        _targets = new Queue<Vector2>(world.ForagablePositions);
+        _targets = new Queue<Vector2>(
+            world.ForagablePositions
+                 .OrderBy(t => Math.Abs(t.X - Game1.player.Tile.X) + Math.Abs(t.Y - Game1.player.Tile.Y))
+        );
     }
 
     public bool Tick()
     {
         if (_targets == null || _targets.Count == 0) return true;
+
+        if (!LocationNavigator.NavigateTo("Farm")) return false;
 
         var tile = _targets.Peek();
         if (Game1.player.Tile == tile)
@@ -45,9 +53,10 @@ public class ForageAction : IAction
             return _targets.Count == 0;
         }
 
-        Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
-            Game1.player, Game1.currentLocation, tile.ToPoint(), 0
-        );
+        if (Game1.player.controller == null)
+            Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
+                Game1.player, Game1.currentLocation, tile.ToPoint(), 0
+            );
         return false;
     }
 }
