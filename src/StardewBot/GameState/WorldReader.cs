@@ -13,7 +13,7 @@ public class WorldReader : IWorldReader
     public float EnergyPercent =>
         Game1.player.MaxStamina > 0
             ? Game1.player.stamina / (float)Game1.player.MaxStamina
-            : 0f;
+            : 1f;
 
     public float InventoryFillRatio =>
         Game1.player.MaxItems > 0

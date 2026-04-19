@@ -19,18 +19,7 @@ public class SleepAction : IAction
 
         if (Game1.currentLocation.Name != "FarmHouse")
         {
-            Game1.warpFarmer("FarmHouse", 21, 4, false);
-            return false;
-        }
-
-        var farmhouse = Game1.currentLocation;
-        var bedTile = new Microsoft.Xna.Framework.Point(21, 4);
-
-        if (Game1.player.Tile != bedTile.ToVector2())
-        {
-            Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
-                Game1.player, farmhouse, bedTile, 0
-            );
+            Game1.warpFarmer("FarmHouse", 5, 9, false);
             return false;
         }
 

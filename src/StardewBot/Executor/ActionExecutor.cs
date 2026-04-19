@@ -26,7 +26,7 @@ public class ActionExecutor
         if (_ctx == null || _world == null) return false;
 
         bool energyLow = _world.EnergyPercent < 0.2f;
-        bool almostNight = _ctx.IsAlmostNight;
+        bool almostNight = StardewValley.Game1.timeOfDay >= 2200;
 
         if ((energyLow || almostNight) && _current is not SleepAction)
         {
