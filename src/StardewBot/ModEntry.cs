@@ -4,6 +4,7 @@ using StardewBot.Scoring;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Menus;
 using System.Linq;
 using GameSeason = StardewBot.GameState.Season;
 using DayCtx = StardewBot.GameState.DayContext;
@@ -21,6 +22,7 @@ public class ModEntry : Mod
     {
         _planner = new DailyPlanner(new IAction[]
         {
+            new QuestAction(),
             new FarmAction(),
             new MineAction(),
             new FishAction(),
@@ -45,7 +47,16 @@ public class ModEntry : Mod
 
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
     {
-        if (!Context.IsWorldReady || !Context.IsPlayerFree) return;
+        if (!Context.IsWorldReady) return;
+
+        if (Game1.activeClickableMenu is DialogueBox db)
+        {
+            if (e.IsMultipleOf(30))
+                db.receiveLeftClick(Game1.viewport.Width / 2, Game1.viewport.Height / 2);
+            return;
+        }
+
+        if (!Context.IsPlayerFree) return;
         _executor?.Tick();
     }
 

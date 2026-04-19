@@ -18,6 +18,9 @@ public class FarmAction : IAction
     private Queue<Vector2>? _tilesToProcess;
     private Vector2         _lastTile;
     private int             _stuckTicks;
+    private bool            _waitingForAnimation;
+
+    private const float WorkRadius = 38f;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -31,8 +34,6 @@ public class FarmAction : IAction
             .AddIf(world.EnergyPercent > 0.5f, 5f)
             .Total;
     }
-
-    private const float WorkRadius = 38f;
 
     public void Begin(DayContext ctx, IWorldReader world)
     {
@@ -49,20 +50,28 @@ public class FarmAction : IAction
         }
 
         var grassTiles = new List<Vector2>();
+        var treeTiles  = new List<Vector2>();
         foreach (var pair in farm.terrainFeatures.Pairs)
-            if (pair.Value is Grass && ManhattanDist(pair.Key, sortOrigin) <= WorkRadius)
+        {
+            if (ManhattanDist(pair.Key, sortOrigin) > WorkRadius) continue;
+            if (pair.Value is Grass)
                 grassTiles.Add(pair.Key);
+            else if (pair.Value is Tree t && !t.tapped.Value)
+                treeTiles.Add(pair.Key);
+        }
 
         var allTiles = world.CropsToHarvest
             .Concat(world.CropsToWater)
             .Concat(world.DebrisToClear.Where(t => ManhattanDist(t, sortOrigin) <= WorkRadius))
             .Concat(world.ForagablePositions)
             .Concat(grassTiles)
+            .Concat(treeTiles)
             .ToList();
 
-        _tilesToProcess = new Queue<Vector2>(NearestNeighborSort(allTiles, sortOrigin));
-        _stuckTicks = 0;
-        _lastTile   = Vector2.Zero;
+        _tilesToProcess      = new Queue<Vector2>(NearestNeighborSort(allTiles, sortOrigin));
+        _stuckTicks          = 0;
+        _lastTile            = Vector2.Zero;
+        _waitingForAnimation = false;
     }
 
     private static float ManhattanDist(Vector2 a, Vector2 b) =>
@@ -93,9 +102,28 @@ public class FarmAction : IAction
 
         if (!LocationNavigator.NavigateTo("Farm")) return false;
 
-        var tile      = _tilesToProcess.Peek();
         var farm      = Game1.getFarm();
         var playerPos = Game1.player.Tile;
+
+        if (_waitingForAnimation)
+        {
+            if (Game1.player.UsingTool) return false;
+            _waitingForAnimation = false;
+            var current = _tilesToProcess.Peek();
+            // Trees need multiple hits — keep in queue until the terrain feature is gone
+            bool treeStillStanding = farm.terrainFeatures.TryGetValue(current, out var tf) && tf is Tree;
+            if (!treeStillStanding)
+            {
+                _tilesToProcess.Dequeue();
+                Game1.player.controller = null;
+                _stuckTicks = 0;
+                return _tilesToProcess.Count == 0;
+            }
+            Game1.player.controller = null;
+            return false;
+        }
+
+        var tile = _tilesToProcess.Peek();
 
         bool hasTerrain = farm.terrainFeatures.TryGetValue(tile, out var feature);
         bool hasObject  = farm.Objects.TryGetValue(tile, out var tileObj);
@@ -108,9 +136,10 @@ public class FarmAction : IAction
             return _tilesToProcess.Count == 0;
         }
 
-        bool isBlocking = hasObject && IsBlockingDebris(tileObj!);
+        bool isBlockingTerrain = feature is Tree;
+        bool isBlocking        = (hasObject && IsBlockingDebris(tileObj!)) || isBlockingTerrain;
         Point pathTarget = isBlocking
-            ? GetDebrisApproach(farm, tile) ?? tile.ToPoint()
+            ? GetAdjacentApproach(farm, tile) ?? tile.ToPoint()
             : tile.ToPoint();
         bool atTarget = isBlocking
             ? IsAdjacentTo(playerPos, tile)
@@ -118,7 +147,12 @@ public class FarmAction : IAction
 
         if (atTarget)
         {
-            UseTool(farm, tile, feature, tileObj);
+            bool needsWait = PerformAction(farm, tile, feature, tileObj, playerPos);
+            if (needsWait)
+            {
+                _waitingForAnimation = true;
+                return false;
+            }
             _tilesToProcess.Dequeue();
             Game1.player.controller = null;
             _stuckTicks = 0;
@@ -149,6 +183,80 @@ public class FarmAction : IAction
         return false;
     }
 
+    private static bool PerformAction(Farm farm, Vector2 tile, TerrainFeature? feature, StardewValley.Object? obj, Vector2 playerPos)
+    {
+        if (feature is HoeDirt dirt)
+        {
+            if (dirt.readyForHarvest())
+                dirt.crop?.harvest((int)tile.X, (int)tile.Y, dirt);
+            else if (dirt.state.Value == HoeDirt.dry)
+                dirt.state.Value = HoeDirt.watered;
+            return false;
+        }
+
+        if (feature is Grass grass)
+        {
+            var scythe = Game1.player.Items.OfType<MeleeWeapon>().FirstOrDefault(m => m.isScythe());
+            if (scythe != null)
+            {
+                Game1.player.faceDirection(FaceToward(playerPos, tile));
+                Game1.player.CurrentTool = scythe;
+                Game1.player.BeginUsingTool();
+                grass.performToolAction(scythe, 1, tile);
+                farm.terrainFeatures.Remove(tile);
+            }
+            return true;
+        }
+
+        if (feature is Tree)
+        {
+            var axe = Game1.player.Items.OfType<Axe>().FirstOrDefault();
+            if (axe != null)
+            {
+                Game1.player.faceDirection(FaceToward(playerPos, tile));
+                Game1.player.CurrentTool = axe;
+                Game1.player.BeginUsingTool();
+            }
+            return true;
+        }
+
+        if (obj == null) return false;
+
+        if (obj.isForage())
+        {
+            farm.checkAction(
+                new xTile.Dimensions.Location((int)tile.X, (int)tile.Y),
+                Game1.viewport, Game1.player);
+            return false;
+        }
+
+        Tool? tool = obj.Name switch
+        {
+            "Stone" => Game1.player.Items.OfType<Pickaxe>().FirstOrDefault() as Tool,
+            "Twig"  => Game1.player.Items.OfType<Axe>().FirstOrDefault() as Tool,
+            "Log"   => Game1.player.Items.OfType<Axe>().FirstOrDefault() as Tool,
+            "Weeds" => Game1.player.Items.OfType<MeleeWeapon>().FirstOrDefault(m => m.isScythe()) as Tool
+                    ?? Game1.player.Items.OfType<Axe>().FirstOrDefault() as Tool,
+            _       => null,
+        };
+
+        if (tool == null) return false;
+
+        Game1.player.faceDirection(FaceToward(playerPos, tile));
+        Game1.player.CurrentTool = tool;
+        Game1.player.BeginUsingTool();
+        return true;
+    }
+
+    private static int FaceToward(Vector2 from, Vector2 to)
+    {
+        int dx = (int)(to.X - from.X);
+        int dy = (int)(to.Y - from.Y);
+        if (Math.Abs(dx) >= Math.Abs(dy))
+            return dx > 0 ? 1 : 3;
+        return dy > 0 ? 2 : 0;
+    }
+
     private static bool IsBlockingDebris(StardewValley.Object obj) =>
         obj.Name is "Stone" or "Twig" or "Weeds" or "Log";
 
@@ -159,7 +267,7 @@ public class FarmAction : IAction
         return dx + dy <= 1;
     }
 
-    private static Point? GetDebrisApproach(Farm farm, Vector2 tile)
+    private static Point? GetAdjacentApproach(Farm farm, Vector2 tile)
     {
         var candidates = new Point[]
         {
@@ -171,60 +279,10 @@ public class FarmAction : IAction
         foreach (var p in candidates)
         {
             if (p.X < 0 || p.Y < 0) continue;
-            if (!farm.Objects.ContainsKey(new Vector2(p.X, p.Y)))
+            var pv = new Vector2(p.X, p.Y);
+            if (!farm.Objects.ContainsKey(pv) && !farm.terrainFeatures.ContainsKey(pv))
                 return p;
         }
         return null;
-    }
-
-    private static void UseTool(Farm farm, Vector2 tile, TerrainFeature? feature, StardewValley.Object? obj)
-    {
-        if (feature is HoeDirt dirt)
-        {
-            if (dirt.readyForHarvest())
-                dirt.crop?.harvest((int)tile.X, (int)tile.Y, dirt);
-            else if (dirt.state.Value == HoeDirt.dry)
-                dirt.state.Value = HoeDirt.watered;
-            return;
-        }
-
-        if (feature is Grass grass)
-        {
-            var scythe = Game1.player.Items.OfType<MeleeWeapon>().FirstOrDefault(m => m.isScythe());
-            if (scythe != null)
-            {
-                grass.performToolAction(scythe, 1, tile);
-                farm.terrainFeatures.Remove(tile);
-            }
-            return;
-        }
-
-        if (obj == null) return;
-
-        if (obj.isForage())
-        {
-            farm.checkAction(
-                new xTile.Dimensions.Location((int)tile.X, (int)tile.Y),
-                Game1.viewport, Game1.player);
-            return;
-        }
-
-        Tool? tool = obj.Name switch
-        {
-            "Stone" => Game1.player.Items.OfType<Pickaxe>().FirstOrDefault(),
-            "Twig"  => Game1.player.Items.OfType<Axe>().FirstOrDefault(),
-            "Log"   => Game1.player.Items.OfType<Axe>().FirstOrDefault(),
-            "Weeds" => (Tool?)Game1.player.Items.OfType<MeleeWeapon>()
-                           .FirstOrDefault(m => m.isScythe())
-                    ?? Game1.player.Items.OfType<Axe>().FirstOrDefault(),
-            _       => null,
-        };
-
-        if (tool == null) return;
-        var saved = Game1.player.CurrentTool;
-        Game1.player.CurrentTool = tool;
-        tool.DoFunction(farm, (int)tile.X * 64, (int)tile.Y * 64, 0, Game1.player);
-        Game1.player.CurrentTool = saved;
-        farm.removeObject(tile, false);
     }
 }
