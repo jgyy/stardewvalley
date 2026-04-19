@@ -33,12 +33,33 @@ public class FarmAction : IAction
 
     public void Begin(DayContext ctx, IWorldReader world)
     {
-        _tilesToProcess = new Queue<Vector2>();
-        foreach (var tile in world.CropsToHarvest) _tilesToProcess.Enqueue(tile);
-        foreach (var tile in world.CropsToWater)   _tilesToProcess.Enqueue(tile);
-        foreach (var tile in world.DebrisToClear)  _tilesToProcess.Enqueue(tile);
+        var allTiles = world.CropsToHarvest
+            .Concat(world.CropsToWater)
+            .Concat(world.DebrisToClear)
+            .ToList();
+
+        _tilesToProcess = new Queue<Vector2>(NearestNeighborSort(allTiles, Game1.player.Tile));
         _stuckTicks = 0;
         _lastTile   = Vector2.Zero;
+    }
+
+    private static IEnumerable<Vector2> NearestNeighborSort(List<Vector2> tiles, Vector2 start)
+    {
+        var remaining = new List<Vector2>(tiles);
+        var current   = start;
+        while (remaining.Count > 0)
+        {
+            int   bestIdx  = 0;
+            float bestDist = float.MaxValue;
+            for (int i = 0; i < remaining.Count; i++)
+            {
+                float d = Math.Abs(remaining[i].X - current.X) + Math.Abs(remaining[i].Y - current.Y);
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+            }
+            current = remaining[bestIdx];
+            yield return current;
+            remaining.RemoveAt(bestIdx);
+        }
     }
 
     public bool Tick()
