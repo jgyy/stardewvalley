@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Pathfinding;
 using System;
@@ -20,18 +21,38 @@ public static class LocationNavigator
         ["Beach"]     = new[] { "Town" },
     };
 
+    private static IMonitor? _monitor;
+    private static string? _warpingTo;
+
+    public static void Init(IMonitor monitor) => _monitor = monitor;
+
     public static bool NavigateTo(string targetLocation)
     {
         var current = Game1.currentLocation;
+
+        if (_warpingTo != null && current.Name.Equals(_warpingTo, StringComparison.OrdinalIgnoreCase))
+            _warpingTo = null;
+
         if (current.Name.Equals(targetLocation, StringComparison.OrdinalIgnoreCase))
             return true;
 
+        if (_warpingTo != null) return false;
+
         var nextMap = FindNextHop(current.Name, targetLocation);
-        if (nextMap == null) return false;
+        if (nextMap == null)
+        {
+            _monitor?.Log($"[Nav] No route from {current.Name} to {targetLocation}", LogLevel.Warn);
+            return false;
+        }
 
         var warp = current.warps.FirstOrDefault(w =>
             w.TargetName.Equals(nextMap, StringComparison.OrdinalIgnoreCase));
-        if (warp == null) return false;
+
+        if (warp == null)
+        {
+            _monitor?.Log($"[Nav] No warp to {nextMap} found in {current.Name}. Available: [{string.Join(", ", current.warps.Select(w2 => $"{w2.TargetName}@({w2.X},{w2.Y})"))}]", LogLevel.Warn);
+            return false;
+        }
 
         var warpTile = new Point(warp.X, warp.Y);
 
@@ -41,16 +62,34 @@ public static class LocationNavigator
         int dx = Math.Abs((int)playerTile.X - warpTile.X);
         int dy = Math.Abs((int)playerTile.Y - warpTile.Y);
 
-        if (dx + dy <= 1)
+        _monitor?.Log($"[Nav] {current.Name}→{nextMap}: warpTile=({warpTile.X},{warpTile.Y}) playerTile=({(int)playerTile.X},{(int)playerTile.Y}) dist={dx + dy}", LogLevel.Debug);
+
+        if (dx + dy <= 2)
         {
+            _monitor?.Log($"[Nav] Close enough — calling warpFarmer to {warp.TargetName} ({warp.TargetX},{warp.TargetY})", LogLevel.Info);
+            _warpingTo = warp.TargetName;
             Game1.warpFarmer(warp.TargetName, warp.TargetX, warp.TargetY, false);
             return false;
         }
 
-        Game1.player.controller = new PathFindController(
-            Game1.player, current, warpTile, -1
-        );
+        var approachTile = GetApproachTile(current, warpTile);
+        _monitor?.Log($"[Nav] Pathfinding to approachTile=({approachTile.X},{approachTile.Y})", LogLevel.Debug);
+        Game1.player.controller = new PathFindController(Game1.player, current, approachTile, -1);
         return false;
+    }
+
+    private static Point GetApproachTile(GameLocation location, Point warpTile)
+    {
+        var layer = location.Map.GetLayer("Back");
+        int mapW = layer?.LayerWidth ?? 9999;
+        int mapH = layer?.LayerHeight ?? 9999;
+
+        if (warpTile.Y >= mapH - 2) return new Point(warpTile.X, Math.Max(0, warpTile.Y - 2));
+        if (warpTile.Y <= 1)        return new Point(warpTile.X, Math.Min(mapH - 1, warpTile.Y + 2));
+        if (warpTile.X >= mapW - 2) return new Point(Math.Max(0, warpTile.X - 2), warpTile.Y);
+        if (warpTile.X <= 1)        return new Point(Math.Min(mapW - 1, warpTile.X + 2), warpTile.Y);
+
+        return warpTile;
     }
 
     private static string? FindNextHop(string from, string to)

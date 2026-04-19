@@ -30,6 +30,7 @@ public class ModEntry : Mod
         });
         _executor = new ActionExecutor();
 
+        LocationNavigator.Init(Monitor);
         helper.Events.GameLoop.DayStarted += OnDayStarted;
         helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
     }
