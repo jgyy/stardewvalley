@@ -1,5 +1,7 @@
+using StardewBot.Executor;
 using StardewBot.GameState;
 using StardewValley;
+using StardewValley.Pathfinding;
 using System.Linq;
 
 namespace StardewBot.Scoring;
@@ -9,7 +11,6 @@ public class ShipAction : IAction
     public string Name => "Ship";
 
     private bool _done;
-    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -20,18 +21,13 @@ public class ShipAction : IAction
             .Total;
     }
 
-    public void Begin(DayContext ctx, IWorldReader world) { _done = false; _warping = false; }
+    public void Begin(DayContext ctx, IWorldReader world) { _done = false; }
 
     public bool Tick()
     {
         if (_done) return true;
 
-        if (Game1.currentLocation.Name != "Farm")
-        {
-            if (!_warping) { Game1.warpFarmer("Farm", 64, 15, false); _warping = true; }
-            return false;
-        }
-        _warping = false;
+        if (!LocationNavigator.NavigateTo("Farm")) return false;
 
         var farm = Game1.getFarm();
         var bin = farm.getBuildingByType("Shipping Bin");
@@ -43,16 +39,13 @@ public class ShipAction : IAction
 
         if (Game1.player.Tile != binTile.ToVector2())
         {
-            Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
-                Game1.player, farm, binTile, 0
-            );
+            if (Game1.player.controller == null)
+                Game1.player.controller = new PathFindController(Game1.player, farm, binTile, 0);
             return false;
         }
 
         foreach (var item in Game1.player.Items.ToList())
-        {
             if (item != null) farm.shipItem(item, Game1.player);
-        }
         _done = true;
         return true;
     }

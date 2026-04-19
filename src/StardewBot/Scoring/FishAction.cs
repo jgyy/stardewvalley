@@ -1,5 +1,8 @@
+using StardewBot.Executor;
 using StardewBot.GameState;
 using StardewValley;
+using StardewValley.Menus;
+using StardewValley.Pathfinding;
 using StardewValley.Tools;
 using System.Linq;
 using GameSeason = StardewBot.GameState.Season;
@@ -10,8 +13,7 @@ public class FishAction : IAction
 {
     public string Name => "Fish";
 
-    private bool _casting;
-    private bool _warping;
+    private static readonly Microsoft.Xna.Framework.Point FishingSpot = new(57, 55);
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -26,42 +28,28 @@ public class FishAction : IAction
             .Total;
     }
 
-    public void Begin(DayContext ctx, IWorldReader world)
-    {
-        _casting = false;
-        _warping = false;
-    }
+    public void Begin(DayContext ctx, IWorldReader world) { }
 
     public bool Tick()
     {
-        var fishingSpot = new Microsoft.Xna.Framework.Point(57, 55);
+        if (!LocationNavigator.NavigateTo("Forest")) return false;
 
-        if (Game1.currentLocation.Name != "Forest")
+        if (Game1.player.Tile != FishingSpot.ToVector2())
         {
-            if (!_warping) { Game1.warpFarmer("Forest", fishingSpot.X, fishingSpot.Y, false); _warping = true; }
+            if (Game1.player.controller == null)
+                Game1.player.controller = new PathFindController(
+                    Game1.player, Game1.currentLocation, FishingSpot, 0
+                );
             return false;
         }
-        _warping = false;
 
-        if (!_casting)
+        if (!Game1.player.UsingTool && Game1.activeClickableMenu is not BobberBar)
         {
-            if (Game1.player.Tile != fishingSpot.ToVector2())
-            {
-                var forest = Game1.currentLocation;
-                Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
-                    Game1.player, forest, fishingSpot, 0
-                );
-                return false;
-            }
-
             var rod = Game1.player.Items.OfType<FishingRod>().FirstOrDefault();
             if (rod == null) return true;
             Game1.player.CurrentTool = rod;
             Game1.player.BeginUsingTool();
-            _casting = true;
-            return false;
         }
-
         return false;
     }
 }

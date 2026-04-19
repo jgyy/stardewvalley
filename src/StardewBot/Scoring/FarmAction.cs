@@ -1,7 +1,9 @@
 using Microsoft.Xna.Framework;
+using StardewBot.Executor;
 using StardewBot.GameState;
 using System.Collections.Generic;
 using StardewValley;
+using StardewValley.Pathfinding;
 using StardewValley.TerrainFeatures;
 
 namespace StardewBot.Scoring;
@@ -11,7 +13,6 @@ public class FarmAction : IAction
     public string Name => "Farm";
 
     private Queue<Vector2>? _tilesToProcess;
-    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -27,7 +28,6 @@ public class FarmAction : IAction
     public void Begin(DayContext ctx, IWorldReader world)
     {
         _tilesToProcess = new Queue<Vector2>();
-        _warping = false;
         foreach (var tile in world.CropsToHarvest) _tilesToProcess.Enqueue(tile);
         foreach (var tile in world.CropsToWater) _tilesToProcess.Enqueue(tile);
     }
@@ -36,12 +36,7 @@ public class FarmAction : IAction
     {
         if (_tilesToProcess == null || _tilesToProcess.Count == 0) return true;
 
-        if (Game1.currentLocation.Name != "Farm")
-        {
-            if (!_warping) { Game1.warpFarmer("Farm", 64, 15, false); _warping = true; }
-            return false;
-        }
-        _warping = false;
+        if (!LocationNavigator.NavigateTo("Farm")) return false;
 
         var tile = _tilesToProcess.Peek();
         var farm = Game1.getFarm();
@@ -59,9 +54,8 @@ public class FarmAction : IAction
             return _tilesToProcess.Count == 0;
         }
 
-        Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
-            Game1.player, farm, tile.ToPoint(), 0
-        );
+        if (Game1.player.controller == null)
+            Game1.player.controller = new PathFindController(Game1.player, farm, tile.ToPoint(), 0);
         return false;
     }
 }

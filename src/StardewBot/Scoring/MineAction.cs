@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using StardewBot.Executor;
 using StardewBot.GameState;
 using StardewValley;
 using StardewValley.Locations;
@@ -9,9 +11,6 @@ namespace StardewBot.Scoring;
 public class MineAction : IAction
 {
     public string Name => "Mine";
-
-    private bool _started;
-    private bool _warping;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -27,34 +26,29 @@ public class MineAction : IAction
             .Total;
     }
 
-    public void Begin(DayContext ctx, IWorldReader world)
-    {
-        _started = false;
-        _warping = false;
-    }
+    public void Begin(DayContext ctx, IWorldReader world) { }
 
     public bool Tick()
     {
-        if (Game1.currentLocation is MineShaft mine)
-            return mine.mineLevel >= MineShaft.lowestLevelReached;
+        if (Game1.currentLocation is MineShaft) return false;
 
-        if (Game1.currentLocation.Name != "Mountain")
-        {
-            if (!_warping) { Game1.warpFarmer("Mountain", 124, 100, false); _warping = true; _started = false; }
-            return false;
-        }
-        _warping = false;
+        if (!LocationNavigator.NavigateTo("Mountain")) return false;
 
-        if (!_started)
+        var mineWarp = Game1.currentLocation.warps.FirstOrDefault(w =>
+            w.TargetName.StartsWith("UndergroundMine", StringComparison.OrdinalIgnoreCase) ||
+            w.TargetName.Equals("Mine", StringComparison.OrdinalIgnoreCase));
+
+        if (mineWarp == null) return false;
+
+        if (Game1.player.controller == null)
         {
-            var mineEntrance = new Microsoft.Xna.Framework.Point(124, 100);
             Game1.player.controller = new PathFindController(
-                Game1.player, Game1.currentLocation, mineEntrance, 0,
-                (c, loc) => Game1.enterMine(Math.Min(120, MineShaft.lowestLevelReached + 1))
+                Game1.player,
+                Game1.currentLocation,
+                new Microsoft.Xna.Framework.Point(mineWarp.X, mineWarp.Y),
+                0
             );
-            _started = true;
         }
-
         return false;
     }
 }
