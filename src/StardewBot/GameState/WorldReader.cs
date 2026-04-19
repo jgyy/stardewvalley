@@ -59,6 +59,25 @@ public class WorldReader : IWorldReader
         }
     }
 
+    public IReadOnlyList<Vector2> DebrisToClear
+    {
+        get
+        {
+            var result = new List<Vector2>();
+            var farm = Game1.getFarm();
+            foreach (var pair in farm.Objects.Pairs)
+            {
+                var name = pair.Value.Name;
+                if (name.Equals("Stone", System.StringComparison.OrdinalIgnoreCase)
+                 || name.Equals("Twig",  System.StringComparison.OrdinalIgnoreCase)
+                 || name.Equals("Weeds", System.StringComparison.OrdinalIgnoreCase)
+                 || name.Equals("Log",   System.StringComparison.OrdinalIgnoreCase))
+                    result.Add(pair.Key);
+            }
+            return result;
+        }
+    }
+
     public IReadOnlyList<NpcInfo> Npcs
     {
         get

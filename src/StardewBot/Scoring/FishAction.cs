@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using StardewBot.Executor;
 using StardewBot.GameState;
 using StardewValley;
@@ -13,7 +14,11 @@ public class FishAction : IAction
 {
     public string Name => "Fish";
 
-    private static readonly Microsoft.Xna.Framework.Point FishingSpot = new(57, 55);
+    private static readonly Point FishingSpot = new(57, 55);
+
+    private Vector2 _lastTile;
+    private int     _stuckTicks;
+    private bool    _gaveUp;
 
     public float Score(DayContext ctx, IWorldReader world)
     {
@@ -28,13 +33,37 @@ public class FishAction : IAction
             .Total;
     }
 
-    public void Begin(DayContext ctx, IWorldReader world) { }
+    public void Begin(DayContext ctx, IWorldReader world)
+    {
+        _stuckTicks = 0;
+        _gaveUp     = false;
+    }
 
     public bool Tick()
     {
+        if (_gaveUp) return true;
+
         if (!LocationNavigator.NavigateTo("Forest")) return false;
 
-        if (Game1.player.Tile != FishingSpot.ToVector2())
+        var playerTile = Game1.player.Tile;
+
+        if (playerTile == _lastTile)
+        {
+            _stuckTicks++;
+            if (_stuckTicks >= 3)
+            {
+                _gaveUp = true;
+                Game1.player.controller = null;
+                return true;
+            }
+        }
+        else
+        {
+            _stuckTicks = 0;
+            _lastTile   = playerTile;
+        }
+
+        if (playerTile != FishingSpot.ToVector2())
         {
             if (Game1.player.controller == null)
                 Game1.player.controller = new PathFindController(
@@ -42,6 +71,8 @@ public class FishAction : IAction
                 );
             return false;
         }
+
+        _stuckTicks = 0;
 
         if (!Game1.player.UsingTool && Game1.activeClickableMenu is not BobberBar)
         {
