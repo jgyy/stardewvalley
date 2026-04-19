@@ -26,6 +26,7 @@ public class FishAction : IAction
     {
         if (ctx.Season == GameSeason.Winter) return 0f;
         if (world.EnergyPercent < 0.3f) return 0f;
+        if (!Game1.player.Items.OfType<FishingRod>().Any()) return 0f;
 
         return new ScoreContext()
             .Add(15f)

@@ -27,6 +27,8 @@ public static class LocationNavigator
     private static Vector2   _lastPlayerTile;
     private static int       _stuckTicks;
 
+    private const int StepSize = 12;
+
     public static void Init(IMonitor monitor) => _monitor = monitor;
 
     public static bool NavigateTo(string targetLocation)
@@ -91,21 +93,38 @@ public static class LocationNavigator
                 _lastPlayerTile = playerPos;
             }
 
-            if (_stuckTicks >= 3)
+            Point pathTarget;
+
+            if (_stuckTicks >= 5)
             {
-                _monitor?.Log($"[Nav] Pathfind failed after {_stuckTicks} ticks — warping directly to {warp.TargetName}", LogLevel.Info);
+                pathTarget = StepToward(playerPos, warpTile);
                 _stuckTicks = 0;
-                _warpingTo  = warp.TargetName;
-                Game1.warpFarmer(warp.TargetName, warp.TargetX, warp.TargetY, false);
-                return false;
+                _monitor?.Log($"[Nav] Stepping toward warp: player=({(int)playerPos.X},{(int)playerPos.Y}) step=({pathTarget.X},{pathTarget.Y}) warp=({warpTile.X},{warpTile.Y})", LogLevel.Debug);
+            }
+            else
+            {
+                var approachTile = GetApproachTile(current, warpTile);
+                pathTarget = approachTile;
+                _monitor?.Log($"[Nav] {current.Name}→{nextMap}: warp=({warpTile.X},{warpTile.Y}) player=({(int)playerPos.X},{(int)playerPos.Y}) dist={dx + dy} → approach=({approachTile.X},{approachTile.Y})", LogLevel.Debug);
             }
 
-            var approachTile = GetApproachTile(current, warpTile);
-            _monitor?.Log($"[Nav] {current.Name}→{nextMap}: warp=({warpTile.X},{warpTile.Y}) player=({(int)playerPos.X},{(int)playerPos.Y}) dist={dx + dy} → approach=({approachTile.X},{approachTile.Y})", LogLevel.Debug);
-            Game1.player.controller = new PathFindController(Game1.player, current, approachTile, -1);
+            Game1.player.controller = new PathFindController(Game1.player, current, pathTarget, -1);
         }
 
         return false;
+    }
+
+    private static Point StepToward(Vector2 from, Point to)
+    {
+        float diffX = to.X - from.X;
+        float diffY = to.Y - from.Y;
+        float dist  = MathF.Sqrt(diffX * diffX + diffY * diffY);
+
+        if (dist <= StepSize)
+            return to;
+
+        float scale = StepSize / dist;
+        return new Point((int)(from.X + diffX * scale), (int)(from.Y + diffY * scale));
     }
 
     private static Point GetApproachTile(GameLocation location, Point warpTile)
