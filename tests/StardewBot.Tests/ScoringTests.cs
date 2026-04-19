@@ -72,4 +72,28 @@ public class ScoringTests
 
         Assert.Equal(0f, score);
     }
+
+    [Fact]
+    public void MineAction_ScoresHighMidSeason()
+    {
+        var world = new FakeWorldReader { InventoryFillRatio = 0.3f, EnergyPercent = 0.9f };
+        var ctx = new DayContext(Season.Spring, 8, 800);
+        var action = new MineAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score >= 30f, $"Expected >= 30, got {score}");
+    }
+
+    [Fact]
+    public void MineAction_ScoresLowWhenInventoryFull()
+    {
+        var world = new FakeWorldReader { InventoryFillRatio = 0.95f, EnergyPercent = 0.9f };
+        var ctx = new DayContext(Season.Spring, 8, 800);
+        var action = new MineAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score < 10f, $"Expected < 10, got {score}");
+    }
 }
