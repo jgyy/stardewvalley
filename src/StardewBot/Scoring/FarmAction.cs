@@ -32,20 +32,11 @@ public class FarmAction : IAction
             .Total;
     }
 
+    private const float WorkRadius = 38f;
+
     public void Begin(DayContext ctx, IWorldReader world)
     {
         var farm = Game1.getFarm();
-
-        var grassTiles = new List<Vector2>();
-        foreach (var pair in farm.terrainFeatures.Pairs)
-            if (pair.Value is Grass) grassTiles.Add(pair.Key);
-
-        var allTiles = world.CropsToHarvest
-            .Concat(world.CropsToWater)
-            .Concat(world.DebrisToClear)
-            .Concat(world.ForagablePositions)
-            .Concat(grassTiles)
-            .ToList();
 
         var sortOrigin = Game1.player.Tile;
         if (!Game1.currentLocation.Name.Equals("Farm", StringComparison.OrdinalIgnoreCase))
@@ -57,10 +48,25 @@ public class FarmAction : IAction
                 : new Vector2(64, 15);
         }
 
+        var grassTiles = new List<Vector2>();
+        foreach (var pair in farm.terrainFeatures.Pairs)
+            if (pair.Value is Grass && ManhattanDist(pair.Key, sortOrigin) <= WorkRadius)
+                grassTiles.Add(pair.Key);
+
+        var allTiles = world.CropsToHarvest
+            .Concat(world.CropsToWater)
+            .Concat(world.DebrisToClear.Where(t => ManhattanDist(t, sortOrigin) <= WorkRadius))
+            .Concat(world.ForagablePositions)
+            .Concat(grassTiles)
+            .ToList();
+
         _tilesToProcess = new Queue<Vector2>(NearestNeighborSort(allTiles, sortOrigin));
         _stuckTicks = 0;
         _lastTile   = Vector2.Zero;
     }
+
+    private static float ManhattanDist(Vector2 a, Vector2 b) =>
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
 
     private static IEnumerable<Vector2> NearestNeighborSort(List<Vector2> tiles, Vector2 start)
     {
@@ -186,7 +192,10 @@ public class FarmAction : IAction
         {
             var scythe = Game1.player.Items.OfType<MeleeWeapon>().FirstOrDefault(m => m.isScythe());
             if (scythe != null)
+            {
                 grass.performToolAction(scythe, 1, tile);
+                farm.terrainFeatures.Remove(tile);
+            }
             return;
         }
 
@@ -216,5 +225,6 @@ public class FarmAction : IAction
         Game1.player.CurrentTool = tool;
         tool.DoFunction(farm, (int)tile.X * 64, (int)tile.Y * 64, 0, Game1.player);
         Game1.player.CurrentTool = saved;
+        farm.removeObject(tile, false);
     }
 }
