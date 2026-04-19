@@ -1,5 +1,8 @@
 using StardewBot.GameState;
 using StardewBot.Scoring;
+using StardewBot.Tests.Fakes;
+using Microsoft.Xna.Framework;
+using System.Collections.Generic;
 using Xunit;
 
 namespace StardewBot.Tests;
@@ -24,5 +27,49 @@ public class ScoringTests
             .AddIf(false, 50f);
 
         Assert.Equal(50f, score.Total);
+    }
+
+    [Fact]
+    public void FarmAction_ScoresHighWhenCropsNeedHarvesting()
+    {
+        var world = new FakeWorldReader
+        {
+            CropsToHarvest = new List<Vector2> { new(1, 1) },
+            EnergyPercent = 0.8f
+        };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+        var action = new FarmAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score >= 40f, $"Expected >= 40, got {score}");
+    }
+
+    [Fact]
+    public void FarmAction_ScoresLowWhenNoCropsAndNoWatering()
+    {
+        var world = new FakeWorldReader { EnergyPercent = 0.8f };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+        var action = new FarmAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score < 10f, $"Expected < 10, got {score}");
+    }
+
+    [Fact]
+    public void FarmAction_ScoresZeroWhenEnergyTooLow()
+    {
+        var world = new FakeWorldReader
+        {
+            CropsToHarvest = new List<Vector2> { new(1, 1) },
+            EnergyPercent = 0.1f
+        };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+        var action = new FarmAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.Equal(0f, score);
     }
 }
