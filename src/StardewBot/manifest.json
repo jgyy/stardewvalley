@@ -1,0 +1,9 @@
+{
+  "Name": "StardewBot",
+  "Author": "jgyy",
+  "Version": "1.0.0",
+  "Description": "Utility-AI bot that auto-plays Stardew Valley indefinitely.",
+  "UniqueID": "jgyy.StardewBot",
+  "EntryDll": "StardewBot.dll",
+  "MinimumApiVersion": "4.0.0"
+}
