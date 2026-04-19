@@ -150,4 +150,70 @@ public class ScoringTests
 
         Assert.Equal(0f, action.Score(ctx, world));
     }
+
+    [Fact]
+    public void SocialAction_ScoresHighOnNpcBirthday()
+    {
+        var world = new FakeWorldReader
+        {
+            Npcs = new List<NpcInfo>
+            {
+                new("Abigail", FriendshipHearts: 4, IsBirthday: true, HasPreferredGiftAvailable: true)
+            },
+            EnergyPercent = 0.9f
+        };
+        var ctx = new DayContext(Season.Spring, 3, 800);
+        var action = new SocialAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score >= 50f);
+    }
+
+    [Fact]
+    public void SocialAction_ScoresZeroWhenAllNpcsMaxFriendship()
+    {
+        var world = new FakeWorldReader
+        {
+            Npcs = new List<NpcInfo>
+            {
+                new("Robin", FriendshipHearts: 10, IsBirthday: false, HasPreferredGiftAvailable: false)
+            },
+            EnergyPercent = 0.9f
+        };
+        var ctx = new DayContext(Season.Spring, 3, 800);
+        var action = new SocialAction();
+
+        Assert.Equal(0f, action.Score(ctx, world));
+    }
+
+    [Fact]
+    public void ShipAction_ScoresHighWhenInventoryNearFull()
+    {
+        var world = new FakeWorldReader { InventoryFillRatio = 0.9f };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+        var action = new ShipAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.True(score >= 60f);
+    }
+
+    [Fact]
+    public void ShipAction_ScoresZeroWhenInventoryEmpty()
+    {
+        var world = new FakeWorldReader { InventoryFillRatio = 0.1f };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+
+        Assert.Equal(0f, new ShipAction().Score(ctx, world));
+    }
+
+    [Fact]
+    public void SleepAction_AlwaysScores999()
+    {
+        var world = new FakeWorldReader { EnergyPercent = 0.05f };
+        var ctx = new DayContext(Season.Spring, 5, 2400);
+
+        Assert.Equal(999f, new SleepAction().Score(ctx, world));
+    }
 }
