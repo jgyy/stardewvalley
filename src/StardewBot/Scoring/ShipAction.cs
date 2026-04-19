@@ -25,6 +25,12 @@ public class ShipAction : IAction
     {
         if (_done) return true;
 
+        if (Game1.currentLocation.Name != "Farm")
+        {
+            Game1.warpFarmer("Farm", 64, 15, false);
+            return false;
+        }
+
         var farm = Game1.getFarm();
         var bin = farm.getBuildingByType("Shipping Bin");
         if (bin == null) { _done = true; return true; }

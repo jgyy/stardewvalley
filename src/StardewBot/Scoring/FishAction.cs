@@ -32,13 +32,19 @@ public class FishAction : IAction
 
     public bool Tick()
     {
-        var forest = Game1.getLocationFromName("Forest");
         var fishingSpot = new Microsoft.Xna.Framework.Point(57, 55);
+
+        if (Game1.currentLocation.Name != "Forest")
+        {
+            Game1.warpFarmer("Forest", fishingSpot.X, fishingSpot.Y, false);
+            return false;
+        }
 
         if (!_casting)
         {
             if (Game1.player.Tile != fishingSpot.ToVector2())
             {
+                var forest = Game1.currentLocation;
                 Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
                     Game1.player, forest, fishingSpot, 0
                 );

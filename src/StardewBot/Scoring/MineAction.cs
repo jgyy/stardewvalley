@@ -33,19 +33,26 @@ public class MineAction : IAction
 
     public bool Tick()
     {
-        if (!_started)
+        if (Game1.currentLocation is MineShaft mine)
+            return mine.mineLevel >= MineShaft.lowestLevelReached;
+
+        if (Game1.currentLocation.Name != "Mountain")
         {
-            var mountain = Game1.getLocationFromName("Mountain");
-            var mineEntrance = new Microsoft.Xna.Framework.Point(124, 100);
-            Game1.player.controller = new PathFindController(
-                Game1.player, mountain, mineEntrance, 0,
-                (c, loc) => Game1.enterMine(Math.Min(120, MineShaft.lowestLevelReached + 1))
-            );
-            _started = true;
+            Game1.warpFarmer("Mountain", 124, 100, false);
+            _started = false;
             return false;
         }
 
-        return Game1.currentLocation is MineShaft mine &&
-               mine.mineLevel >= MineShaft.lowestLevelReached;
+        if (!_started)
+        {
+            var mineEntrance = new Microsoft.Xna.Framework.Point(124, 100);
+            Game1.player.controller = new PathFindController(
+                Game1.player, Game1.currentLocation, mineEntrance, 0,
+                (c, loc) => Game1.enterMine(Math.Min(120, MineShaft.lowestLevelReached + 1))
+            );
+            _started = true;
+        }
+
+        return false;
     }
 }

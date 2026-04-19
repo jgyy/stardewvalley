@@ -34,10 +34,16 @@ public class FarmAction : IAction
     {
         if (_tilesToProcess == null || _tilesToProcess.Count == 0) return true;
 
+        if (Game1.currentLocation.Name != "Farm")
+        {
+            Game1.warpFarmer("Farm", 64, 15, false);
+            return false;
+        }
+
         var tile = _tilesToProcess.Peek();
         var farm = Game1.getFarm();
 
-        if (Game1.player.Position == tile * 64f)
+        if (Game1.player.Tile == tile)
         {
             if (farm.terrainFeatures.TryGetValue(tile, out var feature) && feature is HoeDirt dirt)
             {
@@ -50,6 +56,9 @@ public class FarmAction : IAction
             return _tilesToProcess.Count == 0;
         }
 
+        Game1.player.controller = new StardewValley.Pathfinding.PathFindController(
+            Game1.player, farm, tile.ToPoint(), 0
+        );
         return false;
     }
 }
