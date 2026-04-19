@@ -122,4 +122,32 @@ public class ScoringTests
 
         Assert.Equal(0f, score);
     }
+
+    [Fact]
+    public void ForageAction_ScoresHigherInSpringAndFall()
+    {
+        var world = new FakeWorldReader
+        {
+            ForagablePositions = new List<Vector2> { new(5, 5) },
+            EnergyPercent = 0.9f
+        };
+        var springCtx = new DayContext(Season.Spring, 5, 800);
+        var summerCtx = new DayContext(Season.Summer, 5, 800);
+        var action = new ForageAction();
+
+        float springScore = action.Score(springCtx, world);
+        float summerScore = action.Score(summerCtx, world);
+
+        Assert.True(springScore > summerScore);
+    }
+
+    [Fact]
+    public void ForageAction_ScoresZeroWhenNoForagables()
+    {
+        var world = new FakeWorldReader { EnergyPercent = 0.9f };
+        var ctx = new DayContext(Season.Spring, 5, 800);
+        var action = new ForageAction();
+
+        Assert.Equal(0f, action.Score(ctx, world));
+    }
 }
