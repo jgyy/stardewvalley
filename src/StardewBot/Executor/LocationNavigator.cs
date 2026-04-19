@@ -23,12 +23,20 @@ public static class LocationNavigator
 
     private static IMonitor? _monitor;
     private static string? _warpingTo;
+    private static string? _lastLocation;
 
     public static void Init(IMonitor monitor) => _monitor = monitor;
 
     public static bool NavigateTo(string targetLocation)
     {
         var current = Game1.currentLocation;
+
+        if (_lastLocation != null && !current.Name.Equals(_lastLocation, StringComparison.OrdinalIgnoreCase))
+        {
+            _monitor?.Log($"[Nav] Map changed {_lastLocation}→{current.Name}: clearing stale controller", LogLevel.Debug);
+            Game1.player.controller = null;
+        }
+        _lastLocation = current.Name;
 
         if (_warpingTo != null && current.Name.Equals(_warpingTo, StringComparison.OrdinalIgnoreCase))
             _warpingTo = null;
@@ -50,7 +58,7 @@ public static class LocationNavigator
 
         if (warp == null)
         {
-            _monitor?.Log($"[Nav] No warp to {nextMap} found in {current.Name}. Available: [{string.Join(", ", current.warps.Select(w2 => $"{w2.TargetName}@({w2.X},{w2.Y})"))}]", LogLevel.Warn);
+            _monitor?.Log($"[Nav] No warp to '{nextMap}' in {current.Name}. Warps: [{string.Join(", ", current.warps.Select(w2 => $"{w2.TargetName}@({w2.X},{w2.Y})"))}]", LogLevel.Warn);
             return false;
         }
 
@@ -62,18 +70,18 @@ public static class LocationNavigator
         int dx = Math.Abs((int)playerTile.X - warpTile.X);
         int dy = Math.Abs((int)playerTile.Y - warpTile.Y);
 
-        _monitor?.Log($"[Nav] {current.Name}→{nextMap}: warpTile=({warpTile.X},{warpTile.Y}) playerTile=({(int)playerTile.X},{(int)playerTile.Y}) dist={dx + dy}", LogLevel.Debug);
+        _monitor?.Log($"[Nav] {current.Name}→{nextMap}: warp=({warpTile.X},{warpTile.Y}) player=({(int)playerTile.X},{(int)playerTile.Y}) dist={dx + dy}", LogLevel.Debug);
 
         if (dx + dy <= 2)
         {
-            _monitor?.Log($"[Nav] Close enough — calling warpFarmer to {warp.TargetName} ({warp.TargetX},{warp.TargetY})", LogLevel.Info);
+            _monitor?.Log($"[Nav] Triggering warpFarmer → {warp.TargetName} ({warp.TargetX},{warp.TargetY})", LogLevel.Info);
             _warpingTo = warp.TargetName;
             Game1.warpFarmer(warp.TargetName, warp.TargetX, warp.TargetY, false);
             return false;
         }
 
         var approachTile = GetApproachTile(current, warpTile);
-        _monitor?.Log($"[Nav] Pathfinding to approachTile=({approachTile.X},{approachTile.Y})", LogLevel.Debug);
+        _monitor?.Log($"[Nav] Pathfinding to approach=({approachTile.X},{approachTile.Y})", LogLevel.Debug);
         Game1.player.controller = new PathFindController(Game1.player, current, approachTile, -1);
         return false;
     }
