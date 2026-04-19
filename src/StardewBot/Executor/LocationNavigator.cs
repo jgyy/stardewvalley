@@ -33,18 +33,23 @@ public static class LocationNavigator
             w.TargetName.Equals(nextMap, StringComparison.OrdinalIgnoreCase));
         if (warp == null) return false;
 
-        if (Game1.player.controller == null)
-        {
-            var dest = new Point(warp.X, warp.Y);
-            string targetName = warp.TargetName;
-            int targetX = warp.TargetX;
-            int targetY = warp.TargetY;
+        var warpTile = new Point(warp.X, warp.Y);
 
-            Game1.player.controller = new PathFindController(
-                Game1.player, current, dest, -1,
-                (_, _) => Game1.warpFarmer(targetName, targetX, targetY, false)
-            );
+        if (Game1.player.controller != null) return false;
+
+        var playerTile = Game1.player.Tile;
+        int dx = Math.Abs((int)playerTile.X - warpTile.X);
+        int dy = Math.Abs((int)playerTile.Y - warpTile.Y);
+
+        if (dx + dy <= 1)
+        {
+            Game1.warpFarmer(warp.TargetName, warp.TargetX, warp.TargetY, false);
+            return false;
         }
+
+        Game1.player.controller = new PathFindController(
+            Game1.player, current, warpTile, -1
+        );
         return false;
     }
 
