@@ -20,8 +20,6 @@ public static class LocationNavigator
         ["Beach"]     = new[] { "Town" },
     };
 
-    // Returns true when the player is at targetLocation.
-    // Otherwise pathfinds to the nearest warp tile leading toward it.
     public static bool NavigateTo(string targetLocation)
     {
         var current = Game1.currentLocation;
@@ -35,11 +33,16 @@ public static class LocationNavigator
             w.TargetName.Equals(nextMap, StringComparison.OrdinalIgnoreCase));
         if (warp == null) return false;
 
-        var dest = new Point(warp.X, warp.Y);
         if (Game1.player.controller == null)
         {
+            var dest = new Point(warp.X, warp.Y);
+            string targetName = warp.TargetName;
+            int targetX = warp.TargetX;
+            int targetY = warp.TargetY;
+
             Game1.player.controller = new PathFindController(
-                Game1.player, current, dest, 0
+                Game1.player, current, dest, -1,
+                (_, _) => Game1.warpFarmer(targetName, targetX, targetY, false)
             );
         }
         return false;
