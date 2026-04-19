@@ -96,4 +96,30 @@ public class ScoringTests
 
         Assert.True(score < 10f, $"Expected < 10, got {score}");
     }
+
+    [Fact]
+    public void FishAction_ScoresHigherOnRainyDay()
+    {
+        var worldRainy = new FakeWorldReader { IsRaining = true, EnergyPercent = 0.9f };
+        var worldSunny = new FakeWorldReader { IsRaining = false, EnergyPercent = 0.9f };
+        var ctx = new DayContext(Season.Summer, 10, 800);
+        var action = new FishAction();
+
+        float rainyScore = action.Score(ctx, worldRainy);
+        float sunnyScore = action.Score(ctx, worldSunny);
+
+        Assert.True(rainyScore > sunnyScore, "Rainy should score higher than sunny");
+    }
+
+    [Fact]
+    public void FishAction_ScoresZeroInWinter()
+    {
+        var world = new FakeWorldReader { EnergyPercent = 0.9f };
+        var ctx = new DayContext(Season.Winter, 10, 800, Weather.Rainy);
+        var action = new FishAction();
+
+        float score = action.Score(ctx, world);
+
+        Assert.Equal(0f, score);
+    }
 }
